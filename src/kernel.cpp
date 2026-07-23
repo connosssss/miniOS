@@ -2,10 +2,28 @@
 #include<stddef.h>
 
 
-extern "C" void kernel_main();
 
 
 
+
+enum VgaColor {
+    COLOR_BLACK = 0,
+    COLOR_BLUE = 1,
+    COLOR_GREEN = 2,
+    COLOR_CYAN = 3,
+    COLOR_RED = 4,
+    COLOR_MAGENTA = 5,
+    COLOR_BROWN = 6,
+    COLOR_LIGHT_GREY = 7,
+    COLOR_DARK_GREY = 8,
+    COLOR_LIGHT_BLUE = 9,
+    COLOR_LIGHT_GREEN = 10,
+    COLOR_LIGHT_CYAN = 11,
+    COLOR_LIGHT_RED = 12,
+    COLOR_LIGHT_MAGENTA = 13,
+    COLOR_LIGHT_BROWN = 14,
+    COLOR_WHITE = 15,
+};
 
 
 
@@ -29,7 +47,7 @@ namespace serial {
     // read a byte
     static inline uint8_t inb(uint16_t port) {
         uint8_t res;
-        asm volatile("inb %1, %0" : "=a" (ret) : "Nd"(port));
+        asm volatile("inb %1, %0" : "=a" (res) : "Nd"(port));
 
         return res;
     }
@@ -61,4 +79,105 @@ namespace serial {
     
 
 
+}
+
+
+
+class Terminal {
+
+    static constexpr size_t WIDTH {80};
+    static constexpr size_t HEIGHT {25};
+
+    size_t row {}; size_t col {};
+    uint8_t color {0};
+    uint16_t* buffer {nullptr};
+
+    uint8_t to_color(VgaColor fg, VgaColor bg){
+        return fg | (bg << 4);
+    }
+
+    uint16_t make_vga_entry(const char& c, const uint8_t& color){
+        return static_cast<uint16_t>(c) | (static_cast<uint16_t>(color) << 8);
+    }
+
+
+
+    public:
+
+    
+    void init() {
+        color = to_color(COLOR_WHITE, COLOR_BLACK);
+        buffer = reinterpret_cast<uint16_t*>(0xB8000);
+        clear();
+    }
+
+    void clear() {
+
+        for (size_t y = 0; y < HEIGHT; y++) {
+            for (size_t x = 0; x < WIDTH; x++) {
+
+                const size_t index = y * WIDTH + x;
+                buffer[index] = make_vga_entry(' ', color);
+
+            }
+        }
+    }
+
+    void put_char(char c) {
+        if (c == '\n') {
+            col = 0;
+            if (++row == HEIGHT) {
+                scroll();
+            }
+            return;
+        }
+
+        const size_t index = row * WIDTH + col;
+        buffer[index] = make_vga_entry(c, color);
+        
+        if (++col == WIDTH) {
+            col = 0;
+            if (++row == HEIGHT) {
+                scroll();
+            }
+        }
+    }
+
+    void scroll() {
+
+        for (size_t y = 1; y < HEIGHT; y++) {
+            for (size_t x = 0; x < WIDTH; x++) {
+                buffer[(y - 1) * WIDTH + x] = buffer[y * WIDTH + x];
+            }
+        }
+
+        for (size_t x = 0; x < WIDTH; x++) {
+            buffer[(HEIGHT - 1) * WIDTH + x] = make_vga_entry(' ', color);
+        }
+
+        row = HEIGHT - 1;
+    }
+
+    void write(const char* data) {
+        for (size_t i = 0; data[i] != '\0'; i++) {
+            put_char(data[i]);
+        }
+    }
+};
+
+Terminal terminal;
+
+
+
+
+
+
+
+extern "C" void kernel_main(){
+    serial::init();
+    terminal.init();
+
+    serial::write("aoeuoeuoaeu \n"); 
+    terminal.write("OS booted \n");
+    terminal.write("Helloworld.");
 }
