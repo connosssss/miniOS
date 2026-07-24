@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include<stddef.h>
 
-
+#include "gdt.h"
 
 
 
@@ -163,6 +163,11 @@ class Terminal {
             put_char(data[i]);
         }
     }
+
+
+    void set_color(const VgaColor& fg, const VgaColor& bg) {
+        color = to_color(fg, bg);
+    }
 };
 
 Terminal terminal;
@@ -174,10 +179,19 @@ Terminal terminal;
 
 
 extern "C" void kernel_main(){
+
+
+
+
     serial::init();
     terminal.init();
 
+    // might change to auto add new line char
     serial::write("aoeuoeuoaeu \n"); 
     terminal.write("OS booted \n");
-    terminal.write("Helloworld.");
+    terminal.write("Helloworld.\n");
+
+    gdt::init();
+    terminal.set_color(COLOR_LIGHT_CYAN, COLOR_BLACK);
+    terminal.write("GDT kernel code and data segments installed\n");
 }
