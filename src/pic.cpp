@@ -4,7 +4,7 @@
 
 
 namespace {
-    constexpr uint16_t PIC = 0x20;
+    constexpr uint16_t PIC1 = 0x20;
     constexpr uint16_t PIC1_DATA = 0x21;
     constexpr uint16_t PIC2 = 0xA0;
     constexpr uint16_t PIC2_DATA = 0xA1;
@@ -17,7 +17,7 @@ namespace {
 namespace pic {
     void remap() {
         //begin initialization sequence on both PICs 
-        outb(PIC1, ICW_INIT | ICW1_ICW4);
+        outb(PIC1, ICW1_INIT | ICW1_ICW4);
         io_wait();
         outb(PIC2, ICW1_INIT | ICW1_ICW4);
         io_wait();
