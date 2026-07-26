@@ -2,8 +2,8 @@
 #include "keyboard.h"
 #include "idt.h"
 #include "io.h"
-#include "klog.h"
 #include <stdint.h>
+#include "terminal.h"
 
 namespace {
     // Unshifted US QWERTY, scancode set 1.
@@ -27,9 +27,9 @@ namespace {
         if (scancode & 0x80) return;
 
         char c = (scancode < 128) ? scancode_ascii[scancode] : 0;
-        if (c) klog::write_char(c);
+        if (c) terminal::write_char(c);
     }
-    2c
+    
 }
 
 namespace keyboard {
