@@ -7,9 +7,10 @@
 #include "keyboard.h"
 #include "terminal.h"
 #include "serial.h"
+#include "pmm.h"
 
 
-extern "C" void kernel_main(){
+extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
 
 
 
@@ -19,6 +20,8 @@ extern "C" void kernel_main(){
 
     terminal::write("OS booted \n");
     serial::write("OS booted \n");
+
+    pmm::init(multiboot_info_addr);
 
     gdt::init();
     terminal::set_color(COLOR_LIGHT_CYAN, COLOR_BLACK);

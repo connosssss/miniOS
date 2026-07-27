@@ -1,4 +1,5 @@
 #include "terminal.h"
+#include "kutil.h"
 #include <stddef.h>
 #include "io.h"
 
@@ -79,6 +80,18 @@ namespace terminal {
 
     void set_color(VgaColor fg, VgaColor bg) {
         color = to_color(fg, bg);
+    }
+
+    void write_hex(unsigned int value) {
+        char buf[11];
+        kutil::hex_to_str(value, buf);
+        write(buf);
+    }
+
+    void write_dec(unsigned int value) {
+        char buf[11];
+        kutil::dec_to_str(value, buf);
+        write(buf);
     }
 
 }

@@ -24,7 +24,7 @@ myos.bin: $(OBJECTS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJECTS)
 
 run: myos.bin
-	qemu-system-i386 -kernel myos.bin -serial stdio
+	qemu-system-i386 -m 4G -kernel myos.bin -serial stdio
 
 clean:
 	rm -f src/*.o *.o myos.bin

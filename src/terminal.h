@@ -25,5 +25,6 @@ namespace terminal {
     void write(const char* str);
     void write_char(char c);
     void set_color(VgaColor fg, VgaColor bg);
-
+    void write_hex(unsigned int value);
+    void write_dec(unsigned int value);
 }
