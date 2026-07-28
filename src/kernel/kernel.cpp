@@ -8,6 +8,7 @@
 #include "terminal.h"
 #include "serial.h"
 #include "pmm.h"
+#include "heap.h"
 
 
 extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
@@ -22,6 +23,22 @@ extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
     serial::write("OS booted \n");
 
     pmm::init(multiboot_info_addr);
+    heap::init();
+
+    //testing heap 
+    /*
+    void* ptr1 = heap::kmalloc(100);
+    terminal::write("Allocating ptr1 on heap (100 bytes): 0x");
+    terminal::write_hex(reinterpret_cast<uint32_t>(ptr1));
+    terminal::write("\n");
+
+    void* ptr2 = heap::kmalloc(200);
+    terminal::write("Allocating ptr2 on heap (200 bytes): 0x");
+    terminal::write_hex(reinterpret_cast<uint32_t>(ptr2));
+    terminal::write("\n");
+
+    terminal::write("Freeing ptr1\n");
+    heap::kfree(ptr1);*/
 
     gdt::init();
     terminal::set_color(COLOR_LIGHT_CYAN, COLOR_BLACK);

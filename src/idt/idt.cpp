@@ -93,7 +93,7 @@ extern "C" {
     void isr_handler(registers_t* regs) {
 
     if (regs->int_no == 14) {
-        
+
         uint32_t fault_addr;
         asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
         terminal::set_color(COLOR_LIGHT_RED, COLOR_BLACK);
@@ -105,8 +105,8 @@ extern "C" {
         terminal::write_dec(regs->err_code);
         terminal::write(")\n");
 
-        serial::write("idt PAGE FAULT at 0x");
-        serial::write_hex(fault_addr);
+        serial::write("idt PAGE FAULT caught");
+        
         serial::write("\n");
 
         for (;;) asm volatile("hlt");

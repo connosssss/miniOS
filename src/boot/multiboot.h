@@ -4,7 +4,6 @@
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define MULTIBOOT_MEMORY_AVAILABLE 1
 
-
 struct multiboot_info_t {
     uint32_t flags;
     uint32_t mem_lower;
@@ -18,10 +17,16 @@ struct multiboot_info_t {
     uint32_t mmap_addr;
 } __attribute__((packed));
 
-
 struct multiboot_mmap_entry_t {
     uint32_t size;
     uint64_t addr;
     uint64_t len;
     uint32_t type;
+} __attribute__((packed));
+
+struct multiboot_module_t {
+    uint32_t mod_start;
+    uint32_t mod_end;
+    uint32_t cmdline;
+    uint32_t pad;
 } __attribute__((packed));

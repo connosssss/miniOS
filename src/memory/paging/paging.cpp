@@ -54,9 +54,7 @@ namespace paging {
         terminal::write_dec(tables_needed * 4);
         terminal::write("MB physical RAM from PMM.\n");
 
-        serial::write("paging dynamically identity-mapped ");
-        serial::write_dec(tables_needed * 4);
-        serial::write("MB physical RAM from PMM.\n");
+        serial::write("paging dynamically identity-mapped RAM from PMM.\n");
     }
 
 

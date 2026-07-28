@@ -122,7 +122,7 @@ namespace pmm {
 
         
         uint32_t reserved_end = align_up(bitmap_start_addr + bitmap_size, FRAME_SIZE);
-        
+
         for (uint32_t a = 0; a < reserved_end; a += FRAME_SIZE) {
             uint32_t frame = a / FRAME_SIZE;
             if (frame < max_frames) set_used(frame);
