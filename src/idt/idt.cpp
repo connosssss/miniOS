@@ -91,18 +91,35 @@ extern "C" {
     void idt_flush(uint32_t idt_ptr_addr);
 
     void isr_handler(registers_t* regs) {
-        terminal::set_color(COLOR_LIGHT_RED, COLOR_BLACK);
-        
-        terminal::write("EXCEPTION: ");
-        terminal::write(exception_name(regs->int_no));
-        terminal::write("\n");
 
-        serial::write("EXCEPTION: ");
-        serial::write(exception_name(regs->int_no));
+    if (regs->int_no == 14) {
+        
+        uint32_t fault_addr;
+        asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
+        terminal::set_color(COLOR_LIGHT_RED, COLOR_BLACK);
+
+        terminal::write("idt PAGE FAULT at 0x");
+        terminal::write_hex(fault_addr);
+
+        terminal::write(" (err_code ");
+        terminal::write_dec(regs->err_code);
+        terminal::write(")\n");
+
+        serial::write("idt PAGE FAULT at 0x");
+        serial::write_hex(fault_addr);
         serial::write("\n");
 
         for (;;) asm volatile("hlt");
     }
+
+    terminal::set_color(COLOR_LIGHT_RED, COLOR_BLACK);
+    terminal::write("EXCEPTION: ");
+    terminal::write(exception_name(regs->int_no));
+    terminal::write("\n");
+
+    for (;;) asm volatile("hlt");
+}
+
 
     void irq_handler(registers_t* regs) {
         int irq = regs->int_no - 32;
