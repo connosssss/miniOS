@@ -103,6 +103,14 @@ namespace sys {
                 break;
             }
 
+            case SYS_SET_COLOR: {
+                VgaColor fg = static_cast<VgaColor>(regs->ebx);
+                VgaColor bg = static_cast<VgaColor>(regs->ecx);
+                terminal::set_color(fg, bg);
+                regs->eax = 0;
+                break;
+            }
+
             default:
                 regs->eax = static_cast<uint32_t>(-1);
                 break;

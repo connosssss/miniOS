@@ -42,6 +42,7 @@ extern "C" {
         print("  echo <text>          - Print text to terminal\n");
         print("  clear                - Clear screen\n");
         print("  snake                - Play Snake game\n");
+        print("  color <fg> [bg]      - Change text color\n");
     }
 
 
@@ -284,6 +285,63 @@ extern "C" {
         }
     }
 
+    int parse_color_name(const char* s) {
+        if (streq(s, "black")) return 0;
+        if (streq(s, "blue")) return 1;
+        if (streq(s, "green")) return 2;
+        if (streq(s, "cyan")) return 3;
+        if (streq(s, "red")) return 4;
+        if (streq(s, "magenta")) return 5;
+        if (streq(s, "brown")) return 6;
+        if (streq(s, "grey") || streq(s, "gray") || streq(s, "light_grey")) return 7;
+        if (streq(s, "dark_grey") || streq(s, "dark_gray")) return 8;
+        if (streq(s, "light_blue")) return 9;
+        if (streq(s, "light_green")) return 10;
+        if (streq(s, "light_cyan")) return 11;
+        if (streq(s, "light_red")) return 12;
+        if (streq(s, "light_magenta")) return 13;
+        if (streq(s, "yellow") || streq(s, "light_brown")) return 14;
+        if (streq(s, "white")) return 15;
+        return -1;
+    }
+
+    void cmd_color(const char* args) {
+        static char fg_str[32];
+        static char bg_str[32];
+        fg_str[0] = '\0';
+        bg_str[0] = '\0';
+
+        uint32_t i = 0, j = 0;
+        while (args[i] == ' ') i++;
+
+        while (args[i] != '\0' && args[i] != ' ' && j < sizeof(fg_str) - 1) {
+            fg_str[j++] = args[i++];
+        }
+        fg_str[j] = '\0';
+
+        j = 0;
+        while (args[i] == ' ') i++;
+        while (args[i] != '\0' && args[i] != ' ' && j < sizeof(bg_str) - 1) {
+            bg_str[j++] = args[i++];
+        }
+
+        bg_str[j] = '\0';
+
+        int fg = parse_color_name(fg_str);
+        int bg = (bg_str[0] != '\0') ? parse_color_name(bg_str) : 0;
+
+        if (fg < 0 || bg < 0) {
+            print("Usage: color <fg_color> [bg_color]\n");
+            print("Available colors:\n");
+            print("  black, blue, green, cyan, red, magenta, brown, yellow, white\n");
+            print("  light_blue, light_green, light_cyan, light_red, light_magenta, grey, dark_grey\n");
+            return;
+        }
+
+        syscall(SYS_SET_COLOR, (uint32_t)fg, (uint32_t)bg);
+        print("color changed\n");
+    }
+
     void shell_main() {
         print("miniOS shell (ring 3). Type 'help' for a list of commands.\n> ");
         char line[128];
@@ -311,7 +369,12 @@ extern "C" {
                         syscall(SYS_CLEAR);
                     } else if (streq(line, "snake")) {
                         cmd_snake();
-                    } else {
+                    } else if (streq(line, "color") || strstarts(line, "color ")) {
+                        const char* args = strstarts(line, "color ") ? line + 6 : "";
+                        cmd_color(args);
+                    } 
+                    
+                    else {
                         // Try reading line as a filename directly
                         static char buf[1024];
                         int32_t n = syscall(SYS_READ_FILE, (uint32_t)line, (uint32_t)buf, sizeof(buf) - 1);
@@ -329,10 +392,14 @@ extern "C" {
 
                 print("> ");
                 idx = 0;
-            } else if (c == '\b' && idx > 0) {
+            } 
+            
+            else if (c == '\b' && idx > 0) {
                 idx--;
                 print("\b \b");
-            } else if (c >= 32 && c <= 126 && idx < 127) {
+            } 
+            
+            else if (c >= 32 && c <= 126 && idx < 127) {
                 line[idx++] = c;
                 char echo_buf[2] = {c, '\0'};
                 print(echo_buf);
