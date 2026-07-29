@@ -43,9 +43,8 @@ namespace pic {
 
 
 
-        // Masks everything except for IRQ1 for now
-        // |-> Will need to change in the future 
-        outb(PIC1_DATA, 0xFD);
+        // Masks everything except for IRQ0 (timer) and IRQ1 (keyboard)
+        outb(PIC1_DATA, 0xFC);
         outb(PIC2_DATA, 0xFF);
 
     }

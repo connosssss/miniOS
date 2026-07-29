@@ -41,6 +41,189 @@ extern "C" {
         print("  touch <file> [text]  - Create or update a file\n");
         print("  echo <text>          - Print text to terminal\n");
         print("  clear                - Clear screen\n");
+        print("  snake                - Play Snake game\n");
+    }
+
+
+
+    char pollchar() {
+        return (char)syscall(SYS_POLLCHAR);
+    }
+
+    void msleep(uint32_t ms) {
+        syscall(SYS_SLEEP, ms);
+    }
+
+    void cmd_snake() {
+
+        syscall(SYS_CLEAR);
+        print("SNAKE\n");
+        print("Controls: W A S D to move, Q to quit\n");
+        print("Press any key to start\n");
+
+        while (pollchar() == 0) {
+            msleep(10);
+        }
+
+        const int BOARD_W = 30;
+        const int BOARD_H = 15;
+        const int MAX_LEN = 200;
+
+        int snake_x[MAX_LEN];
+        int snake_y[MAX_LEN];
+        int snake_len = 4;
+
+        for (int i = 0; i < snake_len; i++) {
+            snake_x[i] = 10 - i;
+            snake_y[i] = 7;
+        }
+
+        int dir_x = 1;
+        int dir_y = 0;
+        uint32_t rng_state = 987654321;
+
+        int food_x = 15;
+        int food_y = 8;
+        int score = 0;
+        bool game_over = false;
+
+        while (!game_over) {
+            rng_state = rng_state * 1103515245 + 12345;
+            char c = pollchar();
+
+            if (c == 'q') {
+                break;
+            } 
+
+            else if (c == 'w'&& dir_y != 1) {
+                dir_x = 0; dir_y = -1;
+            } 
+            
+            else if (c == 's' && dir_y != -1) {
+                dir_x = 0; dir_y = 1;
+            } 
+            else if (c == 'a' && dir_x != 1) {
+                dir_x = -1; dir_y = 0;
+            } 
+            else if (c == 'd' && dir_x != -1) {
+                dir_x = 1; dir_y = 0;
+            }
+
+            int next_x = snake_x[0] + dir_x;
+            int next_y = snake_y[0] + dir_y;
+
+            if (next_x < 0 || next_x >= BOARD_W || next_y < 0 || next_y >= BOARD_H) {
+                game_over = true;
+                break;
+            }
+
+            for (int i = 0; i < snake_len; i++) {
+
+                if (snake_x[i] == next_x && snake_y[i] == next_y) {
+                    game_over = true;
+                    break;
+                }
+
+            }
+
+            if (game_over) break;
+
+            if (next_x == food_x && next_y == food_y) {
+
+                score += 100;
+                if (snake_len < MAX_LEN) snake_len++;
+                food_x = (rng_state / 65536) % (BOARD_W - 2) + 1;
+                food_y = (rng_state / 131072) % (BOARD_H - 2) + 1;
+
+            }
+
+
+            for (int i = snake_len - 1; i > 0; i--) {
+
+                snake_x[i] = snake_x[i - 1];
+                snake_y[i] = snake_y[i - 1];
+            }
+
+            snake_x[0] = next_x;
+            snake_y[0] = next_y;
+
+            syscall(SYS_CLEAR);
+            print("Score: ");
+            char score_str[16];
+            int tmp = score, idx = 0;
+
+            if (tmp == 0) score_str[idx++] = '0';
+
+            else {
+                char rev[16];
+                int r = 0;
+                while (tmp > 0) { rev[r++] = '0' + (tmp % 10); tmp /= 10; }
+                while (r > 0) score_str[idx++] = rev[--r];
+            }
+
+            score_str[idx++] = '\n';
+            score_str[idx] = '\0';
+            print(score_str);
+
+            print("+");
+            for (int x = 0; x < BOARD_W; x++) print("-");
+            print("+\n");
+
+            for (int y = 0; y < BOARD_H; y++) {
+                print("|");
+
+                for (int x = 0; x < BOARD_W; x++) {
+                    if (x == snake_x[0] && y == snake_y[0]) {
+                        print("O");
+                    } 
+                    
+                    else {
+                        bool is_body = false;
+                        for (int i = 1; i < snake_len; i++) {
+                            if (snake_x[i] == x && snake_y[i] == y) {
+                                is_body = true;
+                                break;
+                            }
+                        }
+
+                        if (is_body) {
+                            print("o");
+                        } 
+                        else if (x == food_x && y == food_y) {
+                            print("*");
+                        } 
+                        else {
+                            print(" ");
+                        }
+                    }
+                }
+                print("|\n");
+            }
+
+            print("+");
+            for (int x = 0; x < BOARD_W; x++) print("-");
+            print("+\n");
+            print("W/A/S/D to move, Q to quit\n");
+
+            msleep(150);
+        }
+
+        print("\nFinal Score: ");
+
+        char final_score[16];
+        int tmp = score, idx = 0;
+        if (tmp == 0) final_score[idx++] = '0';
+
+        else {
+            char rev[16];
+            int r = 0;
+            while (tmp > 0) { rev[r++] = '0' + (tmp % 10); tmp /= 10; }
+            while (r > 0) final_score[idx++] = rev[--r];
+        }
+
+        final_score[idx++] = '\n';
+        final_score[idx] = '\0';
+        print(final_score);
     }
 
     void cmd_ls() {
@@ -126,6 +309,8 @@ extern "C" {
                         print("\n");
                     } else if (streq(line, "clear")) {
                         syscall(SYS_CLEAR);
+                    } else if (streq(line, "snake")) {
+                        cmd_snake();
                     } else {
                         // Try reading line as a filename directly
                         static char buf[1024];

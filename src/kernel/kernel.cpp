@@ -11,6 +11,7 @@
 #include "heap.h"
 #include "vfs.h"
 #include "paging.h"
+#include "syscall.h"
 
 extern "C" char _user_start[];
 extern "C" char _user_end[];
@@ -62,6 +63,7 @@ extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
     pic::remap();
 
     keyboard::init();
+    sys::init_timer();
     asm volatile("sti");  // enable interrupts
     terminal::set_color(COLOR_LIGHT_GREEN, COLOR_BLACK);
     terminal::write("IRQ1 handler registered and interrupts enabled\n");

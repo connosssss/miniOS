@@ -9,3 +9,6 @@ constexpr uint32_t SYS_READ_FILE = 3;
 constexpr uint32_t SYS_LIST_FILES = 4;
 constexpr uint32_t SYS_CLEAR = 5;
 constexpr uint32_t SYS_CREATE_FILE = 6;
+constexpr uint32_t SYS_POLLCHAR = 7;
+constexpr uint32_t SYS_SLEEP = 8;
+

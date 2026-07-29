@@ -5,8 +5,25 @@
 #include "keyboard.h"
 #include "vfs.h"
 
+#include "io.h"
+
+namespace {
+    volatile uint64_t timer_ticks = 0;
+
+    void timer_irq_handler(registers_t*) {
+        timer_ticks++;
+    }
+}
+
 namespace sys {
 
+    void init_timer() {
+        idt::install_irq_handler(0, timer_irq_handler);
+        uint32_t divisor = 1193; // 1193182 / 1193 = ~1000 Hz (1 ms per tick)
+        outb(0x43, 0x36);
+        outb(0x40, divisor & 0xFF);
+        outb(0x40, (divisor >> 8) & 0xFF);
+    }
 
     void dispatch(registers_t* regs) {
         asm volatile("sti"); // Re-enable interrupts inside interrupt handler
@@ -62,6 +79,27 @@ namespace sys {
                 const char* content = reinterpret_cast<const char*>(regs->ecx);
                 uint32_t len = regs->edx;
                 regs->eax = vfs::create_file(path, content, len);
+                break;
+            }
+
+            case SYS_POLLCHAR: {
+                char c = 0;
+                if (keyboard::try_read(&c)) {
+                    regs->eax = static_cast<uint32_t>(c);
+                } 
+                else {
+                    regs->eax = 0;
+                }
+                break;
+            }
+
+            case SYS_SLEEP: {
+                uint32_t ms = regs->ebx;
+                uint64_t target = timer_ticks + ms;
+                while (timer_ticks < target) {
+                    asm volatile("hlt");
+                }
+                regs->eax = 0;
                 break;
             }
 
