@@ -20,3 +20,15 @@ static inline uint8_t inb(uint16_t port) {
 static inline void io_wait() {
     outb(0x80, 0);
 }
+
+// write a 16-bit word to an x86 IO port
+static inline void outw(uint16_t port, uint16_t val) {
+    asm volatile("outw %0, %1" : : "a"(val), "Nd"(port));
+}
+
+// read a 16-bit word from an x86 IO port
+static inline uint16_t inw(uint16_t port) {
+    uint16_t res;
+    asm volatile("inw %1, %0" : "=a"(res) : "Nd"(port));
+    return res;
+}
