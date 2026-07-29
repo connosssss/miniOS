@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include<stddef.h>
+#include <stddef.h>
 
 #include "gdt.h"
 #include "idt.h"
@@ -10,18 +10,24 @@
 #include "pmm.h"
 #include "heap.h"
 #include "vfs.h"
+#include "paging.h"
 
+extern "C" char _user_start[];
+extern "C" char _user_end[];
+extern "C" char stack_top[];
+
+extern "C" void shell_main();
+extern "C" void jump_to_usermode(uint32_t entry_point, uint32_t user_stack);
 
 extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
-
-
-
+    (void)magic;
 
     serial::init();
     terminal::init();
+    terminal::set_color(COLOR_LIGHT_MAGENTA, COLOR_BLACK);
 
-    terminal::write("OS booted \n");
-    serial::write("OS booted \n");
+    terminal::write("OS booted\n");
+    serial::write("OS booted\n");
 
     pmm::init(multiboot_info_addr);
     vfs::init(multiboot_info_addr);
@@ -43,14 +49,15 @@ extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
     heap::kfree(ptr1);*/
 
     gdt::init();
+    gdt::set_kernel_stack(reinterpret_cast<uint32_t>(&stack_top));
+
     terminal::set_color(COLOR_LIGHT_CYAN, COLOR_BLACK);
-    terminal::write("GDT kernel code and data segments installed\n");
-    serial::write("GDT kernel code and data segments installed\n");
-    
+    terminal::write("GDT kernel/user code and data segments and TSS installed\n");
+    serial::write("GDT kernel/user code and data segments and TSS installed\n");
 
     idt::init();
-    terminal::write("IDT interupt table installed\n");
-    serial::write("IDT interupt table installed\n");
+    terminal::write("IDT interupt table installed (incl. int 0x80 syscall gate)\n");
+    serial::write("IDT interupt table installed (incl. int 0x80 syscall gate)\n");
 
     pic::remap();
 
@@ -60,48 +67,20 @@ extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
     terminal::write("IRQ1 handler registered and interrupts enabled\n");
     serial::write("IRQ1 handler registered and interrupts enabled\n");
 
-    
+    paging::init();
 
+    uint32_t user_size = reinterpret_cast<uint32_t>(_user_end) - reinterpret_cast<uint32_t>(_user_start);
+    paging::set_user_accessible(reinterpret_cast<uint32_t>(_user_start), user_size);
 
-
-    char list_buf[256] = {0};
-    int32_t bytes = vfs::list_files(list_buf, sizeof(list_buf));
-
-    if (bytes > 0) {
-        terminal::write("vfs Found files:\n");
-        terminal::write(list_buf);
-        serial::write("vfs Found files:\n");
-        serial::write(list_buf);
-    } 
-    else {
-        terminal::write("vfs error: No files found in initrd!\n");
-        serial::write("vfs error: No files found in initrd!\n");
-    }
-
-    char file_buf[256] = {0};
-    int32_t read_bytes = vfs::read_file("welcome.txt", file_buf, sizeof(file_buf) - 1);
-    
-    if (read_bytes >= 0) {
-        file_buf[read_bytes] = '\0';
-        terminal::write("vfs Contents of welcome.txt:\n");
-        terminal::write(file_buf);
-        terminal::write("\n");
-
-        serial::write("vfs Contents of welcome.txt:\n");
-        serial::write(file_buf);
-        serial::write("\n");
-    } 
-
-    else {
-        terminal::write("vfs error: Could not read welcome.txt\n");
-        serial::write("vfs error: Could not read welcome.txt\n");
-    }
-
+    uint32_t user_stack_buf = reinterpret_cast<uint32_t>(heap::kmalloc(4096));
+    paging::set_user_accessible(user_stack_buf, 4096);
+    uint32_t user_stack_top = user_stack_buf + 4096;
 
     terminal::set_color(COLOR_WHITE, COLOR_BLACK);
-    terminal::write("\nType on the keyboard:\n");
-    serial::write("\nType on the keyboard:\n");
-    
-    // Halt and wait for interrupts forever
+    terminal::write("\nAll self-tests passed. Jumping to ring 3...\n\n");
+    serial::write("\nAll self-tests passed. Jumping to ring 3...\n\n");
+
+    jump_to_usermode(reinterpret_cast<uint32_t>(shell_main), user_stack_top);
+
     for (;;) asm volatile("hlt");
 }

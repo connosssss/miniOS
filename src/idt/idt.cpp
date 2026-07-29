@@ -110,9 +110,14 @@ extern "C" {
         terminal::write_dec(regs->err_code);
         terminal::write(")\n");
 
-        serial::write("idt PAGE FAULT caught");
-        
-        serial::write("\n");
+        serial::write("idt PAGE FAULT at 0x");
+        char num[12];
+        kutil::hex_to_str(fault_addr, num);
+        serial::write(num);
+        serial::write(" (err_code ");
+        kutil::dec_to_str(regs->err_code, num);
+        serial::write(num);
+        serial::write(")\n");
 
         for (;;) asm volatile("hlt");
     }

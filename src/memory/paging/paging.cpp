@@ -2,6 +2,7 @@
 #include "pmm.h"
 #include "terminal.h"
 #include "serial.h"
+#include "kutil.h"
 
 extern "C" void load_page_directory(uint32_t*);
 extern "C" void enable_paging();
@@ -21,14 +22,13 @@ namespace paging {
             page_directory[i] = 0;
         }
 
-        uint32_t total_bytes = pmm::total_frames() * PAGE_SIZE;
-        if (total_bytes == 0) {
-            total_bytes = 256 * 1024 * 1024; // Fallback to 256MB if PMM hasn't run
+        uint32_t total_frames = pmm::total_frames();
+        uint32_t tables_needed = (total_frames + ENTRIES_PER_TABLE - 1) / ENTRIES_PER_TABLE;
+        
+        if (tables_needed == 0) {
+            tables_needed = 64; 
         }
-
-      
-        uint32_t tables_needed = (total_bytes + TABLE_SPAN - 1) / TABLE_SPAN;
-        if (tables_needed > 1024) tables_needed = 1024; // Cap at 4GB because 32 bit
+        if (tables_needed > ENTRIES_PER_TABLE) tables_needed = ENTRIES_PER_TABLE; // Cap at 1024 tables (4GB)
         num_tables_mapped = tables_needed;
 
         for (uint32_t t = 0; t < tables_needed; t++) {
@@ -54,7 +54,11 @@ namespace paging {
         terminal::write_dec(tables_needed * 4);
         terminal::write("MB physical RAM from PMM.\n");
 
-        serial::write("paging dynamically identity-mapped RAM from PMM.\n");
+        serial::write("paging dynamically identity-mapped ");
+        char num[12];
+        kutil::dec_to_str(tables_needed * 4, num);
+        serial::write(num);
+        serial::write("MB physical RAM from PMM.\n");
     }
 
 

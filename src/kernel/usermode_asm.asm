@@ -9,7 +9,7 @@ jump_to_usermode:
     mov fs, ax
     mov gs, ax
 
-    push dword 0x23 2
+    push dword 0x23 
     push ecx 
     pushfd
     or dword [esp], 0x200 

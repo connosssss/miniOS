@@ -34,7 +34,7 @@ initrd.img: tools/mkinitrd.py $(wildcard initrd/*)
 	python3 tools/mkinitrd.py initrd initrd.img
 
 run: myos.bin initrd.img
-	qemu-system-i386 -m 256M -kernel myos.bin -initrd initrd.img -serial stdio
+	qemu-system-i386 -m 4G -kernel myos.bin -initrd initrd.img -serial stdio
 
 clean:
 	rm -rf $(OBJ_DIR) myos.bin initrd.img

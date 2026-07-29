@@ -16,6 +16,7 @@ align 4
 ; Building a useable stack in .bss
 section .bss
 align 16
+global stack_top
 stack_bottom:
     resb 16384    ; 16 kb kernel stack 
 stack_top:

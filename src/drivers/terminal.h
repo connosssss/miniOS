@@ -22,6 +22,7 @@ enum VgaColor {
 
 namespace terminal {
     void init();
+    void clear();
     void write(const char* str);
     void write_char(char c);
     void set_color(VgaColor fg, VgaColor bg);

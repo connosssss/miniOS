@@ -22,12 +22,6 @@ namespace terminal {
             return static_cast<uint16_t>(c) | (static_cast<uint16_t>(clr) << 8);
         }
 
-        void clear() {
-            for (size_t y = 0; y < HEIGHT; y++)
-                for (size_t x = 0; x < WIDTH; x++)
-                    buffer[y * WIDTH + x] = make_vga_entry(' ', color);
-        }
-
         void scroll() {
             for (size_t y = 1; y < HEIGHT; y++)
                 for (size_t x = 0; x < WIDTH; x++)
@@ -38,6 +32,17 @@ namespace terminal {
 
             row = HEIGHT - 1;
         }
+    }
+
+    void update_cursor();
+
+    void clear() {
+        for (size_t y = 0; y < HEIGHT; y++)
+            for (size_t x = 0; x < WIDTH; x++)
+                buffer[y * WIDTH + x] = make_vga_entry(' ', color);
+        row = 0;
+        col = 0;
+        update_cursor();
     }
 
     void init() {
@@ -59,6 +64,17 @@ namespace terminal {
         if (c == '\n') {
             col = 0;
             if (++row == HEIGHT) scroll();
+            return;
+        }
+
+        if (c == '\b') {
+            if (col > 0) {
+                col--;
+            } else if (row > 0) {
+                row--;
+                col = WIDTH - 1;
+            }
+            update_cursor();
             return;
         }
 
