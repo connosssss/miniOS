@@ -5,6 +5,7 @@
 #include "pic.h"
 #include "terminal.h"
 #include "serial.h"
+#include "syscall.h"
 
 
 namespace {
@@ -73,6 +74,7 @@ namespace {
     }
 }
 
+extern "C" void isr128();
 
 extern "C" {
     void isr0();  void isr1();  void isr2();  void isr3();  void isr4();
@@ -92,6 +94,7 @@ extern "C" {
 
     void isr_handler(registers_t* regs) {
 
+        
     if (regs->int_no == 14) {
 
         uint32_t fault_addr;
@@ -111,6 +114,12 @@ extern "C" {
 
         for (;;) asm volatile("hlt");
     }
+
+    if (regs->int_no == 128) {
+        sys::dispatch(regs);
+        return;
+    }
+
 
     terminal::set_color(COLOR_LIGHT_RED, COLOR_BLACK);
     terminal::write("EXCEPTION: ");
@@ -199,6 +208,9 @@ namespace idt {
         set_gate(45, reinterpret_cast<uint32_t>(irq13), 0x08, 0x8E);
         set_gate(46, reinterpret_cast<uint32_t>(irq14), 0x08, 0x8E);
         set_gate(47, reinterpret_cast<uint32_t>(irq15), 0x08, 0x8E);
+
+
+        set_gate(128, reinterpret_cast<uint32_t>(isr128), 0x08, 0xEE);
 
         idt_flush(reinterpret_cast<uint32_t>(&ptr));
     }

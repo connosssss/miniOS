@@ -135,4 +135,11 @@ idt_flush:
     lidt [eax]
     ret
 
+global isr128
+isr128:
+    push dword 0    ; dummy error code
+    push dword 128  ; interrupt number
+    jmp isr_common_stub
+
+
 section .note.GNU-stack noalloc noexec nowrite progbits
