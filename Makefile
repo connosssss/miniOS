@@ -2,10 +2,10 @@ AS = nasm
 CXX = g++
 LD = ld
 
-INCLUDE_DIRS = -Isrc -Isrc/boot -Isrc/gdt -Isrc/idt -Isrc/pic -Isrc/drivers -Isrc/memory -Isrc/utils -Isrc/kernel -Isrc/memory/paging
+INCLUDE_DIRS = -Isrc -Isrc/boot -Isrc/gdt -Isrc/idt -Isrc/pic -Isrc/drivers -Isrc/memory -Isrc/utils -Isrc/kernel -Isrc/memory/paging -Isrc/filesystem -Isrc/syscall
 
 ASFLAGS = -f elf32
-CXXFLAGS = -m32 -std=c++17 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector -nostdlib -Wall -Wextra $(INCLUDE_DIRS)
+CXXFLAGS = -m32 -std=c++17 -ffreestanding -fno-exceptions -fno-rtti -fno-stack-protector -fno-pic -fno-pie -mno-sse -mno-sse2 -mno-mmx -nostdlib -Wall -Wextra $(INCLUDE_DIRS)
 LDFLAGS = -m elf_i386 -T linker.ld -nostdlib
 
 OBJ_DIR := obj
@@ -16,7 +16,7 @@ OBJECTS     := $(CPP_SOURCES:src/%.cpp=$(OBJ_DIR)/%.o) $(ASM_SOURCES:src/%.asm=$
 
 .PHONY: all run clean
 
-all: myos.bin
+all: myos.bin initrd.img
 
 $(OBJ_DIR)/%.o: src/%.cpp
 	@mkdir -p "$(dir $@)"
@@ -29,8 +29,12 @@ $(OBJ_DIR)/%.o: src/%.asm
 myos.bin: $(OBJECTS)
 	$(LD) $(LDFLAGS) -o $@ $(OBJECTS)
 
-run: myos.bin
-	qemu-system-i386 -m 4G -kernel myos.bin -serial stdio
+initrd.img: tools/mkinitrd.py $(wildcard initrd/*)
+	@mkdir -p initrd
+	python3 tools/mkinitrd.py initrd initrd.img
+
+run: myos.bin initrd.img
+	qemu-system-i386 -m 256M -kernel myos.bin -initrd initrd.img -serial stdio
 
 clean:
-	rm -rf $(OBJ_DIR) myos.bin
+	rm -rf $(OBJ_DIR) myos.bin initrd.img

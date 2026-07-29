@@ -9,6 +9,7 @@
 #include "serial.h"
 #include "pmm.h"
 #include "heap.h"
+#include "vfs.h"
 
 
 extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
@@ -23,6 +24,7 @@ extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
     serial::write("OS booted \n");
 
     pmm::init(multiboot_info_addr);
+    vfs::init(multiboot_info_addr);
     heap::init();
 
     //testing heap 
@@ -58,10 +60,48 @@ extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
     terminal::write("IRQ1 handler registered and interrupts enabled\n");
     serial::write("IRQ1 handler registered and interrupts enabled\n");
 
+    
+
+
+
+    char list_buf[256] = {0};
+    int32_t bytes = vfs::list_files(list_buf, sizeof(list_buf));
+
+    if (bytes > 0) {
+        terminal::write("vfs Found files:\n");
+        terminal::write(list_buf);
+        serial::write("vfs Found files:\n");
+        serial::write(list_buf);
+    } 
+    else {
+        terminal::write("vfs error: No files found in initrd!\n");
+        serial::write("vfs error: No files found in initrd!\n");
+    }
+
+    char file_buf[256] = {0};
+    int32_t read_bytes = vfs::read_file("welcome.txt", file_buf, sizeof(file_buf) - 1);
+    
+    if (read_bytes >= 0) {
+        file_buf[read_bytes] = '\0';
+        terminal::write("vfs Contents of welcome.txt:\n");
+        terminal::write(file_buf);
+        terminal::write("\n");
+
+        serial::write("vfs Contents of welcome.txt:\n");
+        serial::write(file_buf);
+        serial::write("\n");
+    } 
+
+    else {
+        terminal::write("vfs error: Could not read welcome.txt\n");
+        serial::write("vfs error: Could not read welcome.txt\n");
+    }
+
+
     terminal::set_color(COLOR_WHITE, COLOR_BLACK);
     terminal::write("\nType on the keyboard:\n");
     serial::write("\nType on the keyboard:\n");
-
+    
     // Halt and wait for interrupts forever
     for (;;) asm volatile("hlt");
 }

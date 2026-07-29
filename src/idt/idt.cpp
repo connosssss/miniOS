@@ -5,6 +5,8 @@
 #include "pic.h"
 #include "terminal.h"
 #include "serial.h"
+#include "kutil.h"
+#include "syscall.h"
 #include "syscall.h"
 
 
@@ -124,7 +126,27 @@ extern "C" {
     terminal::set_color(COLOR_LIGHT_RED, COLOR_BLACK);
     terminal::write("EXCEPTION: ");
     terminal::write(exception_name(regs->int_no));
-    terminal::write("\n");
+    terminal::write(" (int ");
+    terminal::write_dec(regs->int_no);
+    terminal::write(" eip 0x");
+    terminal::write_hex(regs->eip);
+    terminal::write(" cs 0x");
+    terminal::write_hex(regs->cs);
+    terminal::write(")\n");
+
+    serial::write("EXCEPTION: ");
+    serial::write(exception_name(regs->int_no));
+    serial::write(" (int ");
+    char num[12];
+    kutil::dec_to_str(regs->int_no, num);
+    serial::write(num);
+    serial::write(" eip 0x");
+    kutil::hex_to_str(regs->eip, num);
+    serial::write(num);
+    serial::write(" cs 0x");
+    kutil::hex_to_str(regs->cs, num);
+    serial::write(num);
+    serial::write(")\n");
 
     for (;;) asm volatile("hlt");
 }
