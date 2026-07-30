@@ -6,4 +6,5 @@ namespace vfs {
     int32_t read_file(const char* name, char* buf, uint32_t max_len);
     int32_t list_files(char* buf, uint32_t max_len);
     int32_t create_file(const char* name, const char* content, uint32_t len);
+    int32_t delete_file(const char* name);
 }

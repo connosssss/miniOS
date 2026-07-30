@@ -111,9 +111,16 @@ namespace sys {
                 break;
             }
 
+            case SYS_DELETE_FILE: {
+                const char* path = reinterpret_cast<const char*>(regs->ebx);
+                regs->eax = vfs::delete_file(path);
+                break;
+            }
+
             default:
                 regs->eax = static_cast<uint32_t>(-1);
                 break;
+
         }
     }
 }

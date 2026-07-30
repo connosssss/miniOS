@@ -16,7 +16,7 @@ OBJECTS     := $(CPP_SOURCES:src/%.cpp=$(OBJ_DIR)/%.o) $(ASM_SOURCES:src/%.asm=$
 
 .PHONY: all run clean
 
-all: myos.bin initrd.img
+all: myos.bin initrd.img disk.img
 
 $(OBJ_DIR)/%.o: src/%.cpp
 	@mkdir -p "$(dir $@)"
@@ -33,8 +33,12 @@ initrd.img: tools/mkinitrd.py $(wildcard initrd/*)
 	@mkdir -p initrd
 	python3 tools/mkinitrd.py initrd initrd.img
 
-run: myos.bin initrd.img
-	qemu-system-i386 -m 4G -kernel myos.bin -initrd initrd.img -serial stdio
+# Create disk image if it doesn't exist (preserves data across rebuilds)
+disk.img:
+	qemu-img create -f raw disk.img 2M
+
+run: myos.bin initrd.img disk.img
+	qemu-system-i386 -m 4G -kernel myos.bin -initrd initrd.img -hda disk.img -serial stdio
 
 clean:
 	rm -rf $(OBJ_DIR) myos.bin initrd.img

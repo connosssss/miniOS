@@ -12,6 +12,8 @@
 #include "vfs.h"
 #include "paging.h"
 #include "syscall.h"
+#include "ata.h"
+#include "minifs.h"
 
 extern "C" char _user_start[];
 extern "C" char _user_end[];
@@ -33,6 +35,11 @@ extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
     pmm::init(multiboot_info_addr);
     vfs::init(multiboot_info_addr);
     heap::init();
+
+    // Initialize disk-backed filesystem
+    if (ata::init()) {
+        minifs::init();
+    }
 
     //testing heap 
     /*

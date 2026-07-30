@@ -3,6 +3,7 @@
 #include "kutil.h"
 #include "terminal.h"
 #include "serial.h"
+#include "minifs.h"
 
 namespace {
     struct file_header_t {
@@ -12,18 +13,7 @@ namespace {
 
     const uint8_t* initrd_base = nullptr;
     uint32_t file_count = 0;
-
-    constexpr uint32_t MAX_DYNAMIC_FILES = 32;
-    constexpr uint32_t MAX_FILE_SIZE = 2048;
-
-    struct dynamic_file_t {
-        char name[64];
-        char content[MAX_FILE_SIZE];
-        uint32_t size;
-        bool used;
-    };
-
-    dynamic_file_t dynamic_files[MAX_DYNAMIC_FILES] = {};
+    
 }
 
 namespace vfs {
@@ -52,52 +42,17 @@ namespace vfs {
     }
 
     int32_t create_file(const char* name, const char* content, uint32_t len) {
-        if (!name || name[0] == '\0') return -1;
+        // Write to the disk-backed miniFS
+        return minifs::create(name, content, len);
+    }
 
-        // Check if file already exists in dynamic storage
-        for (uint32_t i = 0; i < MAX_DYNAMIC_FILES; i++) {
-            if (dynamic_files[i].used && kutil::strcmp(dynamic_files[i].name, name) == 0) {
-                uint32_t write_len = (len >= MAX_FILE_SIZE) ? (MAX_FILE_SIZE - 1) : len;
-                kutil::memcpy(dynamic_files[i].content, content, write_len);
-                dynamic_files[i].content[write_len] = '\0';
-                dynamic_files[i].size = write_len;
-                return 0;
-            }
-        }
-
-        // Find empty slot
-        for (uint32_t i = 0; i < MAX_DYNAMIC_FILES; i++) {
-            if (!dynamic_files[i].used) {
-                uint32_t name_len = kutil::strlen(name);
-                if (name_len >= sizeof(dynamic_files[i].name)) name_len = sizeof(dynamic_files[i].name) - 1;
-                kutil::memcpy(dynamic_files[i].name, name, name_len);
-                dynamic_files[i].name[name_len] = '\0';
-
-                uint32_t write_len = (len >= MAX_FILE_SIZE) ? (MAX_FILE_SIZE - 1) : len;
-                kutil::memcpy(dynamic_files[i].content, content, write_len);
-                dynamic_files[i].content[write_len] = '\0';
-                dynamic_files[i].size = write_len;
-                dynamic_files[i].used = true;
-                return 0;
-            }
-        }
-
-        return -1;
+    int32_t delete_file(const char* name) {
+        return minifs::remove(name);
     }
 
     int32_t read_file(const char* name, char* buf, uint32_t max_len) {
-
-        for (uint32_t i = 0; i < MAX_DYNAMIC_FILES; i++) {
-
-            if (dynamic_files[i].used && kutil::strcmp(dynamic_files[i].name, name) == 0) {
-
-                uint32_t read_bytes = (dynamic_files[i].size > max_len) ? max_len : dynamic_files[i].size;
-                kutil::memcpy(buf, dynamic_files[i].content, read_bytes);
-
-                return read_bytes;
-            }
-
-        }
+        int32_t result = minifs::read(name, buf, max_len);
+        if (result >= 0) return result;
 
         if (!initrd_base || file_count == 0) return -1;
 
@@ -105,6 +60,7 @@ namespace vfs {
         uint32_t data_offset = 4 + file_count * sizeof(file_header_t);
 
         for (uint32_t i = 0; i < file_count; i++) {
+
             if (kutil::strcmp(headers[i].name, name) == 0) {
                 uint32_t read_bytes = (headers[i].size > max_len) ? max_len : headers[i].size;
                 kutil::memcpy(buf, initrd_base + data_offset, read_bytes);
@@ -132,15 +88,18 @@ namespace vfs {
             }
         }
 
-        for (uint32_t i = 0; i < MAX_DYNAMIC_FILES && pos < max_len; i++) {
-            if (dynamic_files[i].used) {
-                uint32_t len = kutil::strlen(dynamic_files[i].name);
-                if (pos + len + 1 < max_len) {
-                    kutil::memcpy(buf + pos, dynamic_files[i].name, len);
-                    pos += len;
-                    buf[pos++] = '\n';
-                }
+        if (pos < max_len) {
+
+            char disk_buf[512];
+            int32_t disk_len = minifs::list(disk_buf, sizeof(disk_buf));
+
+            if (disk_len > 0) {
+                uint32_t to_copy = static_cast<uint32_t>(disk_len);
+                if (pos + to_copy >= max_len) to_copy = max_len - pos - 1;
+                kutil::memcpy(buf + pos, disk_buf, to_copy);
+                pos += to_copy;
             }
+
         }
 
         if (pos < max_len) buf[pos] = '\0';

@@ -39,6 +39,7 @@ extern "C" {
         print("  ls                   - List files in filesystem\n");
         print("  cat <file>           - Display contents of a file\n");
         print("  touch <file> [text]  - Create or update a file\n");
+        print("  rm <file>            - Delete a file from disk\n");
         print("  echo <text>          - Print text to terminal\n");
         print("  clear                - Clear screen\n");
         print("  snake                - Play Snake game\n");
@@ -285,6 +286,26 @@ extern "C" {
         }
     }
 
+    void cmd_rm(const char* filename) {
+        if (filename[0] == '\0') {
+            print("Usage: rm <filename>\n");
+            return;
+        }
+        int32_t res = syscall(SYS_DELETE_FILE, (uint32_t)filename);
+        
+        if (res == 0) {
+            print("Deleted '");
+            print(filename);
+            print("'\n");
+        } 
+        
+        else {
+            print("rm: file not found: ");
+            print(filename);
+            print("\n");
+        }
+    }
+
     int parse_color_name(const char* s) {
         if (streq(s, "black")) return 0;
         if (streq(s, "blue")) return 1;
@@ -362,6 +383,8 @@ extern "C" {
                         cmd_cat(line + 4);
                     } else if (strstarts(line, "touch ")) {
                         cmd_touch(line + 6);
+                    } else if (strstarts(line, "rm ")) {
+                        cmd_rm(line + 3);
                     } else if (strstarts(line, "echo ")) {
                         print(line + 5);
                         print("\n");
