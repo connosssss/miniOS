@@ -4,6 +4,7 @@
 #include "serial.h"
 #include "keyboard.h"
 #include "vfs.h"
+#include "process.h"
 
 #include "io.h"
 
@@ -23,6 +24,10 @@ namespace sys {
         outb(0x43, 0x36);
         outb(0x40, divisor & 0xFF);
         outb(0x40, (divisor >> 8) & 0xFF);
+    }
+
+    uint64_t get_ticks() {
+        return timer_ticks;
     }
 
     void dispatch(registers_t* regs) {
@@ -95,10 +100,7 @@ namespace sys {
 
             case SYS_SLEEP: {
                 uint32_t ms = regs->ebx;
-                uint64_t target = timer_ticks + ms;
-                while (timer_ticks < target) {
-                    asm volatile("sti; hlt");
-                }
+                process::sleep_current(ms, timer_ticks);
                 regs->eax = 0;
                 break;
             }
@@ -120,6 +122,46 @@ namespace sys {
 
             case SYS_YIELD: {
                 regs->eax = 0;
+                break;
+            }
+
+            case SYS_GET_TICKS: {
+                regs->eax = static_cast<uint32_t>(timer_ticks);
+                break;
+            }
+
+            case SYS_GET_PROC_COUNT: {
+                regs->eax = process::count();
+                break;
+            }
+
+            case SYS_WRITE_AT: {
+                // ebx = (row << 16 | col), ecx = str pointer, edx = color_attr
+                uint16_t r = static_cast<uint16_t>(regs->ebx >> 16);
+                uint16_t c = static_cast<uint16_t>(regs->ebx & 0xFFFF);
+
+                const char* str = reinterpret_cast<const char*>(regs->ecx);
+                uint8_t color_attr = static_cast<uint8_t>(regs->edx);
+                terminal::write_at(r, c, str, color_attr);
+
+
+                regs->eax = 0;
+                break;
+            }
+
+            case SYS_WRITE_SERIAL: {
+                const char* str = reinterpret_cast<const char*>(regs->ebx);
+                serial::write(str);
+                regs->eax = 0;
+
+                break;
+            }
+
+            case SYS_LIST_PROCS: {
+                char* buf = reinterpret_cast<char*>(regs->ebx);
+                uint32_t size = regs->ecx;
+                regs->eax = process::list_procs(buf, size);
+                
                 break;
             }
 

@@ -36,6 +36,7 @@ extern "C" {
     void cmd_help() {
         print("Available commands:\n");
         print("  help                 - Show this help message\n");
+        print("  ps                   - List running tasks\n");
         print("  ls                   - List files in filesystem\n");
         print("  cat <file>           - Display contents of a file\n");
         print("  touch <file> [text]  - Create or update a file\n");
@@ -44,6 +45,17 @@ extern "C" {
         print("  clear                - Clear screen\n");
         print("  snake                - Play Snake game\n");
         print("  color <fg> [bg]      - Change text color\n");
+    }
+
+    void cmd_ps() {
+        static char buf[512];
+        int32_t n = syscall(SYS_LIST_PROCS, (uint32_t)buf, sizeof(buf) - 1);
+        if (n > 0) {
+            buf[n] = '\0';
+            print(buf);
+        } else {
+            print("No processes found.\n");
+        }
     }
 
 
@@ -364,6 +376,7 @@ extern "C" {
     }
 
     void shell_main() {
+        syscall(SYS_SET_COLOR, 15, 0); // white on black
         print("miniOS shell (ring 3). Type 'help' for a list of commands.\n> ");
         char line[128];
         uint32_t idx = 0;
@@ -392,6 +405,8 @@ extern "C" {
                         syscall(SYS_CLEAR);
                     } else if (streq(line, "snake")) {
                         cmd_snake();
+                    } else if (streq(line, "ps")) {
+                        cmd_ps();
                     } else if (streq(line, "color") || strstarts(line, "color ")) {
                         const char* args = strstarts(line, "color ") ? line + 6 : "";
                         cmd_color(args);

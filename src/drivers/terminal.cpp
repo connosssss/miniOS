@@ -22,8 +22,11 @@ namespace terminal {
             return static_cast<uint16_t>(c) | (static_cast<uint16_t>(clr) << 8);
         }
 
+        // Row 0 is reserved for the status bar
+        constexpr size_t FIRST_ROW = 1;
+
         void scroll() {
-            for (size_t y = 1; y < HEIGHT; y++)
+            for (size_t y = FIRST_ROW + 1; y < HEIGHT; y++)
                 for (size_t x = 0; x < WIDTH; x++)
                     buffer[(y - 1) * WIDTH + x] = buffer[y * WIDTH + x];
 
@@ -37,10 +40,10 @@ namespace terminal {
     void update_cursor();
 
     void clear() {
-        for (size_t y = 0; y < HEIGHT; y++)
+        for (size_t y = FIRST_ROW; y < HEIGHT; y++)
             for (size_t x = 0; x < WIDTH; x++)
                 buffer[y * WIDTH + x] = make_vga_entry(' ', color);
-        row = 0;
+        row = FIRST_ROW;
         col = 0;
         update_cursor();
     }
@@ -48,7 +51,13 @@ namespace terminal {
     void init() {
         color = to_color(COLOR_WHITE, COLOR_BLACK);
         buffer = reinterpret_cast<uint16_t*>(0xB8000);
-        clear();
+        for (size_t y = 0; y < HEIGHT; y++)
+            for (size_t x = 0; x < WIDTH; x++)
+                buffer[y * WIDTH + x] = make_vga_entry(' ', color);
+            
+        row = FIRST_ROW;
+        col = 0;
+        update_cursor();
     }
 
     void update_cursor() {
@@ -108,6 +117,12 @@ namespace terminal {
         char buf[11];
         kutil::dec_to_str(value, buf);
         write(buf);
+    }
+
+    void write_at(uint16_t r, uint16_t c, const char* str, uint8_t color_attr) {
+        for (size_t i = 0; str[i] != '\0' && c + i < WIDTH; i++) {
+            buffer[r * WIDTH + c + i] = make_vga_entry(str[i], color_attr);
+        }
     }
 
 }

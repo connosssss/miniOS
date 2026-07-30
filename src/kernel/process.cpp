@@ -6,6 +6,7 @@
 #include "terminal.h"
 #include "serial.h"
 #include "kutil.h"
+#include "syscall.h"
 
 extern "C" char _user_start[];
 extern "C" char _user_end[];
@@ -37,11 +38,18 @@ namespace process {
     }
 
 
-    process_t* create(void (*entry_point)(), bool is_user) {
+    process_t* create(void (*entry_point)(), bool is_user, const char* name) {
         process_t* proc = reinterpret_cast<process_t*>(heap::kmalloc(sizeof(process_t)));
         proc->pid = next_pid++;
         proc->state = PROCESS_READY;
+        proc->is_user = is_user;
         proc->next = nullptr;
+        proc->sleep_until = 0;
+
+        // Copy name
+        int i = 0;
+        while (name[i] && i < 15) { proc->name[i] = name[i]; i++; }
+        proc->name[i] = '\0';
 
         //allocate kernel stack
         uint32_t kstack_size = 4096;
@@ -122,11 +130,32 @@ namespace process {
             current_proc->state = PROCESS_READY;
         }
 
-        // find the next ready task
+        // Wake any sleeping processes whose time has come
+        uint64_t now = sys::get_ticks();
+        process_t* p = process_head;
+        do {
+            if (p->state == PROCESS_SLEEPING && now >= p->sleep_until) {
+                p->state = PROCESS_READY;
+                p->sleep_until = 0;
+            }
+            p = p->next;
+        } while (p != process_head);
+
+        // find the next ready task (skip sleeping/terminated)
         process_t* next_proc = current_proc->next;
-        
         while (next_proc->state != PROCESS_READY && next_proc != current_proc) {
             next_proc = next_proc->next;
+        }
+
+        // If no ready process found, fall back to current
+        if (next_proc->state != PROCESS_READY) {
+            // current might have been set to READY above
+            if (current_proc->state == PROCESS_READY) {
+                next_proc = current_proc;
+            } else {
+                // All sleeping — just return current regs and hlt
+                return current_regs;
+            }
         }
 
         current_proc = next_proc;
@@ -160,6 +189,84 @@ extern "C" void restore_registers(registers_t* regs);
         gdt::set_kernel_stack(current_proc->kernel_stack_top);
 
         restore_registers(current_proc->regs);
+    }
+
+    uint32_t count() {
+        if (!process_head) return 0;
+        uint32_t n = 1;
+        process_t* p = process_head->next;
+        while (p != process_head) {
+            n++;
+            p = p->next;
+        }
+        return n;
+    }
+
+    void sleep_current(uint32_t ms, uint64_t current_ticks) {
+        if (!current_proc) return;
+        current_proc->sleep_until = current_ticks + ms;
+        current_proc->state = PROCESS_SLEEPING;
+    }
+
+    uint32_t list_procs(char* buf, uint32_t size) {
+        if (!process_head || size < 2) return 0;
+
+        uint32_t pos = 0;
+
+        auto append = [&](const char* s) {
+            while (*s && pos < size - 1) buf[pos++] = *s++;
+        };
+
+        auto append_num = [&](uint32_t val) {
+            char tmp[12];
+            int i = 0;
+            if (val == 0) { tmp[i++] = '0'; }
+            else {
+                char rev[12]; int r = 0;
+                while (val > 0) { rev[r++] = '0' + (val % 10); val /= 10; }
+                while (r > 0) tmp[i++] = rev[--r];
+            }
+            tmp[i] = '\0';
+            append(tmp);
+        };
+
+        append("PID  STATE    RING  NAME\n");
+        append("---  -------  ----  --------\n");
+
+        process_t* p = process_head;
+        do {
+            // PID
+            append_num(p->pid);
+            // pad to column 5
+            uint32_t pid_digits = 1;
+            uint32_t tmp = p->pid;
+            while (tmp >= 10) { pid_digits++; tmp /= 10; }
+            for (uint32_t i = pid_digits; i < 5; i++) append(" ");
+
+            // State
+            const char* state_str;
+            switch (p->state) {
+                case PROCESS_RUNNING:    state_str = "RUNNING"; break;
+                case PROCESS_READY:      state_str = "READY  "; break;
+                case PROCESS_SLEEPING:   state_str = "SLEEP  "; break;
+                case PROCESS_TERMINATED: state_str = "STOPPED"; break;
+                default:                 state_str = "???????"; break;
+            }
+            append(state_str);
+            append("  ");
+
+            // Ring
+            append(p->is_user ? "  3   " : "  0   ");
+
+            // Name
+            append(p->name);
+            append("\n");
+
+            p = p->next;
+        } while (p != process_head);
+
+        buf[pos] = '\0';
+        return pos;
     }
 
 }

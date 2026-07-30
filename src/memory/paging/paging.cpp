@@ -98,6 +98,7 @@ namespace paging {
                 auto* table = reinterpret_cast<uint32_t*>(table_phys);
                 table[i] |= PAGE_USER;
             }
+
         }
     }
 

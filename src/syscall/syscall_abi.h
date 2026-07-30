@@ -14,6 +14,10 @@ constexpr uint32_t SYS_SLEEP = 8;
 constexpr uint32_t SYS_SET_COLOR = 9;
 constexpr uint32_t SYS_DELETE_FILE = 10;
 constexpr uint32_t SYS_YIELD = 11;
-
+constexpr uint32_t SYS_GET_TICKS = 12;
+constexpr uint32_t SYS_GET_PROC_COUNT = 13;
+constexpr uint32_t SYS_WRITE_AT = 14;
+constexpr uint32_t SYS_WRITE_SERIAL = 15;
+constexpr uint32_t SYS_LIST_PROCS = 16;
 
 

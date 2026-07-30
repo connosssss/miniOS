@@ -23,6 +23,8 @@ extern "C" char stack_top[];
 
 extern "C" void shell_main();
 extern "C" void jump_to_usermode(uint32_t entry_point, uint32_t user_stack);
+extern "C" void statusbar_main();
+extern "C" void sysmon_main();
 
 namespace {
     void background_task() {
@@ -98,20 +100,22 @@ extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
     paging::init();
 
     process::init();
+    process_t* shell_proc = process::create(shell_main, true, "shell");
+    process_t* bar_proc = process::create(statusbar_main, true, "statusbar");
+    process_t* mon_proc = process::create(sysmon_main, true, "sysmon");
 
-    // ring 3 shell
-    process_t* shell_proc = process::create(shell_main, true);
-
-    // background kernel process
-    process_t* bg_proc = process::create(background_task, false);
+    process_t* bg_proc = process::create(background_task, false, "background");
 
     terminal::set_color(COLOR_LIGHT_CYAN, COLOR_BLACK);
-    terminal::write("multitasking init -> shell Task (PID ");
+    terminal::write("multitasking init -> ");
+    terminal::write_dec(process::count());
+    terminal::write(" tasks (shell=PID");
     terminal::write_dec(shell_proc->pid);
-    terminal::write(", CR3: ");
-    terminal::write_hex(shell_proc->page_directory_phys);
-
-    terminal::write(") & Background Task (PID ");
+    terminal::write(" bar=PID");
+    terminal::write_dec(bar_proc->pid);
+    terminal::write(" mon=PID");
+    terminal::write_dec(mon_proc->pid);
+    terminal::write(" bg=PID");
     terminal::write_dec(bg_proc->pid);
     terminal::write(")\n");
 

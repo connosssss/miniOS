@@ -28,4 +28,5 @@ namespace terminal {
     void set_color(VgaColor fg, VgaColor bg);
     void write_hex(unsigned int value);
     void write_dec(unsigned int value);
+    void write_at(uint16_t row, uint16_t col, const char* str, uint8_t color_attr);
 }
