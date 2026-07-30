@@ -78,6 +78,8 @@ namespace {
 
 extern "C" void isr128();
 
+#include "process.h"
+
 extern "C" {
     void isr0();  void isr1();  void isr2();  void isr3();  void isr4();
     void isr5();  void isr6();  void isr7();  void isr8();  void isr9();
@@ -94,70 +96,66 @@ extern "C" {
     
     void idt_flush(uint32_t idt_ptr_addr);
 
-    void isr_handler(registers_t* regs) {
+    registers_t* isr_handler(registers_t* regs) {
+        if (regs->int_no == 14) {
+            uint32_t fault_addr;
+            asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
+            terminal::set_color(COLOR_LIGHT_RED, COLOR_BLACK);
 
-        
-    if (regs->int_no == 14) {
+            terminal::write("idt PAGE FAULT at 0x");
+            terminal::write_hex(fault_addr);
 
-        uint32_t fault_addr;
-        asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
+            terminal::write(" (err_code ");
+            terminal::write_dec(regs->err_code);
+            terminal::write(")\n");
+
+            serial::write("idt PAGE FAULT at 0x");
+            char num[12];
+            kutil::hex_to_str(fault_addr, num);
+            serial::write(num);
+            serial::write(" (err_code ");
+            kutil::dec_to_str(regs->err_code, num);
+            serial::write(num);
+            serial::write(")\n");
+
+            for (;;) asm volatile("hlt");
+        }
+
+        if (regs->int_no == 128) {
+            sys::dispatch(regs);
+            return process::schedule(regs);
+        }
+
         terminal::set_color(COLOR_LIGHT_RED, COLOR_BLACK);
-
-        terminal::write("idt PAGE FAULT at 0x");
-        terminal::write_hex(fault_addr);
-
-        terminal::write(" (err_code ");
-        terminal::write_dec(regs->err_code);
+        terminal::write("EXCEPTION: ");
+        terminal::write(exception_name(regs->int_no));
+        terminal::write(" (int ");
+        terminal::write_dec(regs->int_no);
+        terminal::write(" eip 0x");
+        terminal::write_hex(regs->eip);
+        terminal::write(" cs 0x");
+        terminal::write_hex(regs->cs);
         terminal::write(")\n");
 
-        serial::write("idt PAGE FAULT at 0x");
+        serial::write("EXCEPTION: ");
+        serial::write(exception_name(regs->int_no));
+        serial::write(" (int ");
         char num[12];
-        kutil::hex_to_str(fault_addr, num);
+        kutil::dec_to_str(regs->int_no, num);
         serial::write(num);
-        serial::write(" (err_code ");
-        kutil::dec_to_str(regs->err_code, num);
+        serial::write(" eip 0x");
+        kutil::hex_to_str(regs->eip, num);
+        serial::write(num);
+        serial::write(" cs 0x");
+        kutil::hex_to_str(regs->cs, num);
         serial::write(num);
         serial::write(")\n");
 
         for (;;) asm volatile("hlt");
+        return regs;
     }
 
-    if (regs->int_no == 128) {
-        sys::dispatch(regs);
-        return;
-    }
-
-
-    terminal::set_color(COLOR_LIGHT_RED, COLOR_BLACK);
-    terminal::write("EXCEPTION: ");
-    terminal::write(exception_name(regs->int_no));
-    terminal::write(" (int ");
-    terminal::write_dec(regs->int_no);
-    terminal::write(" eip 0x");
-    terminal::write_hex(regs->eip);
-    terminal::write(" cs 0x");
-    terminal::write_hex(regs->cs);
-    terminal::write(")\n");
-
-    serial::write("EXCEPTION: ");
-    serial::write(exception_name(regs->int_no));
-    serial::write(" (int ");
-    char num[12];
-    kutil::dec_to_str(regs->int_no, num);
-    serial::write(num);
-    serial::write(" eip 0x");
-    kutil::hex_to_str(regs->eip, num);
-    serial::write(num);
-    serial::write(" cs 0x");
-    kutil::hex_to_str(regs->cs, num);
-    serial::write(num);
-    serial::write(")\n");
-
-    for (;;) asm volatile("hlt");
-}
-
-
-    void irq_handler(registers_t* regs) {
+    registers_t* irq_handler(registers_t* regs) {
         int irq = regs->int_no - 32;
 
         if (irq >= 0 && irq < 16 && irq_routines[irq]) {
@@ -165,8 +163,16 @@ extern "C" {
         }
 
         pic::send_eoi(irq);
+
+        if (process::is_multitasking_active()) {
+            return process::schedule(regs);
+        }
+
+        return regs;
     }
 }
+
+
 
 
 namespace idt {

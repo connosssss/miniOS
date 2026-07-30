@@ -26,9 +26,8 @@ namespace sys {
     }
 
     void dispatch(registers_t* regs) {
-        asm volatile("sti"); // Re-enable interrupts inside interrupt handler
-
         switch (regs->eax) {
+
 
             case SYS_WRITE: {
                 const char* str = reinterpret_cast<const char*>(regs->ebx);
@@ -42,12 +41,13 @@ namespace sys {
                 char c;
 
                 while (!keyboard::try_read(&c)) {
-                    asm volatile("hlt");
+                    asm volatile("sti; hlt");
                 }
 
                 regs->eax = static_cast<uint32_t>(c);
                 break;
             }
+
 
             case SYS_READ_FILE: {
                 const char* path = reinterpret_cast<const char*>(regs->ebx);
@@ -97,11 +97,12 @@ namespace sys {
                 uint32_t ms = regs->ebx;
                 uint64_t target = timer_ticks + ms;
                 while (timer_ticks < target) {
-                    asm volatile("hlt");
+                    asm volatile("sti; hlt");
                 }
                 regs->eax = 0;
                 break;
             }
+
 
             case SYS_SET_COLOR: {
                 VgaColor fg = static_cast<VgaColor>(regs->ebx);
@@ -114,6 +115,11 @@ namespace sys {
             case SYS_DELETE_FILE: {
                 const char* path = reinterpret_cast<const char*>(regs->ebx);
                 regs->eax = vfs::delete_file(path);
+                break;
+            }
+
+            case SYS_YIELD: {
+                regs->eax = 0;
                 break;
             }
 

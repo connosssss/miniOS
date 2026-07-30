@@ -16,3 +16,16 @@ jump_to_usermode:
     push dword 0x1B 
     push ebx
     iret
+
+global restore_registers
+restore_registers:
+    mov esp, [esp + 4]
+    pop eax
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    popa
+    add esp, 8
+    iret
+

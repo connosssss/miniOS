@@ -81,6 +81,7 @@ extern irq_handler
 ; [int_no][err_code][EIP][CS][EFLAGS] (pushed by the stub then the CPU)
 isr_common_stub:
     pusha       ; save edi,esi,ebp,esp,ebx,edx,ecx,eax
+    xor eax, eax
     mov ax, ds
     push eax    ; save the data segment too -> matches registers_t.ds
 
@@ -92,7 +93,7 @@ isr_common_stub:
 
     push esp  ; pass a pointer to the registers_t 
     call isr_handler
-    add esp, 4 ; discard that argument
+    mov esp, eax ; update stack pointer from returned registers_t* pointer
 
     pop eax  ; restore og data segment
     mov ds, ax
@@ -106,8 +107,10 @@ isr_common_stub:
 
 irq_common_stub:
     pusha
+    xor eax, eax
     mov ax, ds
     push eax
+
 
     mov ax, 0x10
     mov ds, ax
@@ -117,7 +120,7 @@ irq_common_stub:
 
     push esp
     call irq_handler
-    add esp, 4
+    mov esp, eax ; update stack pointer from returned registers_t* pointer
 
     pop eax
     mov ds, ax

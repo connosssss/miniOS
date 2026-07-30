@@ -15,12 +15,31 @@
 #include "ata.h"
 #include "minifs.h"
 
+#include "process.h"
+
 extern "C" char _user_start[];
 extern "C" char _user_end[];
 extern "C" char stack_top[];
 
 extern "C" void shell_main();
 extern "C" void jump_to_usermode(uint32_t entry_point, uint32_t user_stack);
+
+namespace {
+    void background_task() {
+        uint32_t ticks = 0;
+
+        while (1) {
+            ticks++;
+
+            if (ticks % 10000000 == 0) {
+                serial::write("background Task: concurrently running task\n");
+            }
+            
+            process::yield();
+        }
+    }
+}
+
 
 extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
     (void)magic;
@@ -78,28 +97,26 @@ extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
 
     paging::init();
 
-    uint32_t shell_pd = paging::create_user_page_directory();
+    process::init();
 
-    uint32_t user_size = reinterpret_cast<uint32_t>(_user_end) - reinterpret_cast<uint32_t>(_user_start);
-    paging::set_user_accessible_in_dir(shell_pd, reinterpret_cast<uint32_t>(_user_start), user_size);
+    // ring 3 shell
+    process_t* shell_proc = process::create(shell_main, true);
 
-    uint32_t user_stack_buf = reinterpret_cast<uint32_t>(heap::kmalloc(4096));
-    paging::set_user_accessible_in_dir(shell_pd, user_stack_buf, 4096);
-    uint32_t user_stack_top = user_stack_buf + 4096;
-
-    paging::switch_page_directory(shell_pd);
+    // background kernel process
+    process_t* bg_proc = process::create(background_task, false);
 
     terminal::set_color(COLOR_LIGHT_CYAN, COLOR_BLACK);
-    terminal::write("Created isolated user page directory (CR3: 0x");
-    terminal::write_hex(shell_pd);
-    terminal::write(") for user shell.\n");
+    terminal::write("multitasking init -> shell Task (PID ");
+    terminal::write_dec(shell_proc->pid);
+    terminal::write(", CR3: ");
+    terminal::write_hex(shell_proc->page_directory_phys);
 
-    terminal::set_color(COLOR_WHITE, COLOR_BLACK);
-    terminal::write("\nAll self-tests passed. Jumping to ring 3\n\n");
-    serial::write("\nAll self-tests passed. Jumping to ring 3\n\n");
+    terminal::write(") & Background Task (PID ");
+    terminal::write_dec(bg_proc->pid);
+    terminal::write(")\n");
 
-    jump_to_usermode(reinterpret_cast<uint32_t>(shell_main), user_stack_top);
-
+    serial::write("multitasking init\n");
+    process::start_multitasking();
 
     for (;;) asm volatile("hlt");
 }
