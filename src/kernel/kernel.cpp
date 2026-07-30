@@ -78,18 +78,28 @@ extern "C" void kernel_main(uint32_t magic, uint32_t multiboot_info_addr){
 
     paging::init();
 
+    uint32_t shell_pd = paging::create_user_page_directory();
+
     uint32_t user_size = reinterpret_cast<uint32_t>(_user_end) - reinterpret_cast<uint32_t>(_user_start);
-    paging::set_user_accessible(reinterpret_cast<uint32_t>(_user_start), user_size);
+    paging::set_user_accessible_in_dir(shell_pd, reinterpret_cast<uint32_t>(_user_start), user_size);
 
     uint32_t user_stack_buf = reinterpret_cast<uint32_t>(heap::kmalloc(4096));
-    paging::set_user_accessible(user_stack_buf, 4096);
+    paging::set_user_accessible_in_dir(shell_pd, user_stack_buf, 4096);
     uint32_t user_stack_top = user_stack_buf + 4096;
 
+    paging::switch_page_directory(shell_pd);
+
+    terminal::set_color(COLOR_LIGHT_CYAN, COLOR_BLACK);
+    terminal::write("Created isolated user page directory (CR3: 0x");
+    terminal::write_hex(shell_pd);
+    terminal::write(") for user shell.\n");
+
     terminal::set_color(COLOR_WHITE, COLOR_BLACK);
-    terminal::write("\nAll self-tests passed. Jumping to ring 3...\n\n");
-    serial::write("\nAll self-tests passed. Jumping to ring 3...\n\n");
+    terminal::write("\nAll self-tests passed. Jumping to ring 3\n\n");
+    serial::write("\nAll self-tests passed. Jumping to ring 3\n\n");
 
     jump_to_usermode(reinterpret_cast<uint32_t>(shell_main), user_stack_top);
+
 
     for (;;) asm volatile("hlt");
 }

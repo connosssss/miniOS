@@ -61,12 +61,31 @@ namespace paging {
         serial::write("MB physical RAM from PMM.\n");
     }
 
+    uint32_t get_kernel_page_directory() {
+        return reinterpret_cast<uint32_t>(page_directory);
+    }
 
+    void switch_page_directory(uint32_t pd_phys) {
+        load_page_directory(reinterpret_cast<uint32_t*>(pd_phys));
+    }
 
+    uint32_t create_user_page_directory() {
+        uint32_t pd_frame = pmm::alloc_frame();
+        auto* pd = reinterpret_cast<uint32_t*>(pd_frame);
 
+        for (uint32_t i = 0; i < ENTRIES_PER_TABLE; i++) {
+            pd[i] = 0;
+        }
 
-    void set_user_accessible(uint32_t virt_addr, uint32_t size) {
+        for (uint32_t t = 0; t < num_tables_mapped; t++) {
+            pd[t] = page_directory[t];
+        }
 
+        return pd_frame;
+    }
+
+    void set_user_accessible_in_dir(uint32_t pd_phys, uint32_t virt_addr, uint32_t size) {
+        auto* pd = reinterpret_cast<uint32_t*>(pd_phys);
         uint32_t start_page = virt_addr / PAGE_SIZE;
         uint32_t end_page = (virt_addr + size - 1) / PAGE_SIZE;
 
@@ -74,12 +93,16 @@ namespace paging {
             uint32_t t = page / ENTRIES_PER_TABLE;
             uint32_t i = page % ENTRIES_PER_TABLE;
 
-            if (t < num_tables_mapped && (page_directory[t] & PAGE_PRESENT)) {
-                uint32_t table_phys = page_directory[t] & ~0xFFF;
+            if (t < num_tables_mapped && (pd[t] & PAGE_PRESENT)) {
+                uint32_t table_phys = pd[t] & ~0xFFF;
                 auto* table = reinterpret_cast<uint32_t*>(table_phys);
                 table[i] |= PAGE_USER;
             }
-
         }
     }
+
+    void set_user_accessible(uint32_t virt_addr, uint32_t size) {
+        set_user_accessible_in_dir(get_kernel_page_directory(), virt_addr, size);
+    }
 }
+
